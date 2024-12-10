@@ -1,0 +1,479 @@
+MAIN Form1 CODE
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace ISHAAQZAADE_CLEANING_SOFT
+{
+    public partial class Form1 : Form   
+    {
+        public Form1()
+        {
+            InitializeComponent();
+            InitializeUI();
+
+            // Load the first page by default
+            LoadPage(new Page1());
+
+            // Set the form's start position to center of the screen
+            this.StartPosition = FormStartPosition.CenterScreen;
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void InitializeUI()
+        {
+
+        }
+
+        private void LoadPage(UserControl page)
+        {
+
+            mainContentPanel.Controls.Clear(); // Clear existing controls
+            page.Dock = DockStyle.Fill;        // Make the UserControl fill the panel
+            mainContentPanel.Controls.Add(page); // Add the UserControl to the panel
+
+
+            // Clear existing controls in the main content panel
+            mainContentPanel.Controls.Clear();
+
+            // Set the UserControl to fill the main content panel
+            page.Dock = DockStyle.Fill;
+
+            // Add the UserControl to the main content panel
+            mainContentPanel.Controls.Add(page);
+        }
+
+        private void btnMenu1_Click(object sender, EventArgs e)
+        {
+            LoadPage(new Page1());
+        }
+
+        private void btnMenu2_Click(object sender, EventArgs e)
+        {
+            LoadPage(new Page2());
+        }
+
+        private void btnMenu3_Click(object sender, EventArgs e)
+        {
+            LoadPage(new Page3());
+        }
+
+        private void btnMenu4_Click(object sender, EventArgs e)
+        {
+            LoadPage(new Page4());
+        }
+    }
+
+}
+
+
+**UserControl1 CODE
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.Win32;
+using System.Windows.Forms;
+using System.Diagnostics;
+using System.Management;
+using System.Drawing.Drawing2D;
+
+namespace ISHAAQZAADE_CLEANING_SOFT
+{
+    public partial class Page1 : UserControl
+    {
+
+        private Timer pulsateTimer;
+        private int pulsateRadius = 5;
+        private int pulsateDirection = 1;                
+        private float rotationAngle = 0;
+
+
+        // Paths for cleaning
+        private readonly string tempPath = Path.GetTempPath();                    // %temp%
+        private readonly string systemTempPath = @"C:\Windows\Temp";              // System Temp
+        private readonly string prefetchPath = @"C:\Windows\Prefetch";            // Prefetch
+        private readonly string recentPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            @"Microsoft\Windows\Recent");                                        // Recent Files
+
+        // Importing SHEmptyRecycleBin for Recycle Bin cleaning
+        [DllImport("shell32.dll", SetLastError = true)]
+        private static extern uint SHEmptyRecycleBin(IntPtr hwnd, string pszRootPath, uint dwFlags);
+
+        private const uint SHERB_NOCONFIRMATION = 0x00000001;  // No confirmation dialog
+        private const uint SHERB_NOPROGRESSUI = 0x00000002;    // No progress UI
+        private const uint SHERB_NOSOUND = 0x00000004;         // No sound
+
+
+        public Page1()
+        {
+            InitializeComponent();
+
+            // Initialize the pulsate animation timer
+            pulsateTimer = new Timer
+            {
+                Interval = 50
+            };
+            pulsateTimer.Tick += PulsateTimer_Tick;
+            pulsateTimer.Start();
+                        
+
+        }
+
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            rotationAngle += 5; // Increment angle
+            if (rotationAngle >= 360)
+                rotationAngle = 0; // Reset after full rotation
+
+            BtnClean.Invalidate(); // Trigger redraw
+        }
+
+
+        private void PulsateTimer_Tick(object sender, EventArgs e)
+        {
+            pulsateRadius += pulsateDirection;
+
+            // Reverse direction at limits
+            if (pulsateRadius > 15 || pulsateRadius < 5)
+            {
+                pulsateDirection *= -1;
+            }
+
+            // Redraw button for pulsating effect
+            BtnClean.Invalidate();
+        }
+
+        // Custom button style
+        private void BtnClean_AdvancedStyle(object sender, PaintEventArgs e)
+        {
+            Button button = (Button)sender;
+            Graphics g = e.Graphics;
+
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            Rectangle rect = new Rectangle(0, 0, button.Width, button.Height);
+
+            // Gradient background
+            using (LinearGradientBrush brush = new LinearGradientBrush(rect, Color.MediumSlateBlue, Color.DarkSlateBlue, 45F))
+            {
+                g.FillEllipse(brush, rect);
+            }
+
+            // Outer glow effect
+            using (Pen glowPen = new Pen(Color.FromArgb(80, Color.Cyan), 10))
+            {
+                g.DrawEllipse(glowPen, new Rectangle(5, 5, button.Width - 10, button.Height - 10));
+            }
+
+            // Text in the center of the button
+            TextRenderer.DrawText(g, button.Text, button.Font, rect, button.ForeColor,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        
+
+        private void RotationTimer_Tick(object sender, EventArgs e)
+        {
+            rotationAngle += 5; // Increment angle
+            if (rotationAngle >= 360) rotationAngle = 0;
+
+            BtnClean.Invalidate(); // Redraw the button
+        }
+
+        private void BtnClean_Paint(object sender, PaintEventArgs e)
+        {
+
+            Button btn = sender as Button;
+
+            // Draw a custom shape (optional)
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Draw pulsating effect
+            int radius = pulsateRadius;
+            Rectangle rect = new Rectangle(btn.ClientRectangle.X + radius, btn.ClientRectangle.Y + radius,
+                                           btn.ClientRectangle.Width - 2 * radius, btn.ClientRectangle.Height - 2 * radius);
+
+            using (Brush brush = new LinearGradientBrush(rect, Color.Indigo, Color.Purple, LinearGradientMode.ForwardDiagonal))
+            {
+                g.FillEllipse(brush, rect);
+            }
+
+            // Draw pulsating glow
+            using (Brush brush = new SolidBrush(Color.FromArgb(80, Color.MediumSlateBlue)))
+            {
+                g.FillEllipse(brush, -pulsateRadius, -pulsateRadius, BtnClean.Width + pulsateRadius * 2, BtnClean.Height + pulsateRadius * 2);
+            }
+
+            // Draw a rotating arc (60-degree segment of a circle)
+            using (Pen pen = new Pen(Color.Black, 3))
+            {
+                pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+
+                // Define the rectangle for the arc
+                Rectangle arcRect = new Rectangle(10, 10, BtnClean.Width - 20, BtnClean.Height - 20);
+
+                // Draw the full circle
+                g.DrawArc(pen, rect, 0, 360); // Full circle
+            }
+
+            // Draw text
+            StringFormat sf = new StringFormat
+            {
+                Alignment = StringAlignment.Center,
+                LineAlignment = StringAlignment.Center
+            };
+            g.DrawString(btn.Text, btn.Font, Brushes.White, rect, sf);
+        }
+
+
+        
+
+        // Method to get folder size
+        private long GetFolderSize(string folderPath)
+        {
+            if (!Directory.Exists(folderPath)) return 0;
+            return Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories)
+                .Select(file => new FileInfo(file))
+                .Sum(fileInfo => fileInfo.Length);
+        }
+
+        // Method to delete files in a folder
+        private void DeleteFiles(string folderPath)
+        {
+            if (!Directory.Exists(folderPath)) return;
+            foreach (string file in Directory.GetFiles(folderPath))
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    Console.WriteLine($"Access denied for {file}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deleting {file}: {ex.Message}");
+                }
+            }
+        }
+
+        // Method to clear Explorer History
+        private void ClearExplorerHistory()
+        {
+            try
+            {
+                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU", false);
+                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths", false);
+                Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs", false);
+                MessageBox.Show("Explorer History has been cleared.", "Explorer History", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to clear Explorer History: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+
+        private void EmptyRecycleBinAlternative()
+        {
+            try
+            {
+                var process = new System.Diagnostics.Process();
+                process.StartInfo.FileName = "cmd.exe";
+                process.StartInfo.Arguments = "/c echo Y| PowerShell -Command \"Clear-RecycleBin\"";  // Automatically confirms deletion
+                process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                process.Start();
+                process.WaitForExit();
+
+                MessageBox.Show("Recycle Bin has been emptied successfully.", "Recycle Bin", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to empty Recycle Bin: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+
+        }
+
+
+        public class CircularButton : Button
+        {
+            protected override void OnPaint(PaintEventArgs pevent)
+            {
+                Graphics g = pevent.Graphics;
+
+                // Make the button circular
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                g.Clear(this.Parent.BackColor);
+
+                // Calculate the circle's bounds
+                int diameter = Math.Min(this.Width, this.Height);
+                Rectangle circleBounds = new Rectangle(0, 0, diameter - 1, diameter - 1);
+
+                // Draw circle background
+                using (Brush brush = new SolidBrush(this.BackColor))
+                {
+                    g.FillEllipse(brush, circleBounds);
+                }
+
+                // Draw circle border
+                using (Pen pen = new Pen(Color.Black, 2))
+                {
+                    g.DrawEllipse(pen, circleBounds);
+                }
+
+                // Draw centered text
+                TextRenderer.DrawText(g, this.Text, this.Font,
+                    circleBounds, this.ForeColor,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+
+            protected override void OnResize(EventArgs e)
+            {
+                base.OnResize(e);
+                // Keep the button circular
+                this.Width = this.Height;
+            }
+        }
+
+        private void Page1_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void chkTemp_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void chkAll_CheckedChanged_1(object sender, EventArgs e)
+        {
+            bool checkState = chkAll.Checked;
+            chkTemp.Checked = checkState;
+            chkPrefetch.Checked = checkState;
+            chkUserTemp.Checked = checkState;            
+            chkRecent.Checked = checkState;
+            
+        }
+
+        private void BtnClean_Click(object sender, EventArgs e)
+        {
+            var cleanedSizes = new Dictionary<string, long>();
+            long totalCleanedSize = 0;
+
+            if (chkTemp.Checked)
+            {
+                long tempSize = GetFolderSize(systemTempPath);
+                cleanedSizes["System Temp"] = tempSize;
+                totalCleanedSize += tempSize;
+                DeleteFiles(systemTempPath);
+            }
+
+            if (chkPrefetch.Checked)
+            {
+                long prefetchSize = GetFolderSize(prefetchPath);
+                cleanedSizes["Prefetch"] = prefetchSize;
+                totalCleanedSize += prefetchSize;
+                DeleteFiles(prefetchPath);
+            }
+
+            if (chkUserTemp.Checked)
+            {
+                long userTempSize = GetFolderSize(tempPath);
+                cleanedSizes["User Temp"] = userTempSize;
+                totalCleanedSize += userTempSize;
+                DeleteFiles(tempPath);
+            }
+
+            if (chkRecent.Checked)
+            {
+                long recentSize = GetFolderSize(recentPath);
+                cleanedSizes["Recent Files"] = recentSize;
+                totalCleanedSize += recentSize;
+                DeleteFiles(recentPath);
+            }
+
+            if (chkRecycleBin.Checked)
+            {
+                long recycleBinSize = 0;
+                uint result = SHEmptyRecycleBin(IntPtr.Zero, null, SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND);
+                if (result == 0)
+                {
+                    cleanedSizes["Recycle Bin"] = recycleBinSize;
+                    totalCleanedSize += recycleBinSize;
+                }
+                else
+                {
+                    MessageBox.Show("Failed to empty Recycle Bin.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+            if (chkHistory.Checked)
+            {
+                long historySize = 0;
+                ClearExplorerHistory();
+                cleanedSizes["Explorer History"] = historySize;
+                totalCleanedSize += historySize;
+            }
+
+            string message = "Cleaning completed! Here are the details:\n\n";
+            foreach (var entry in cleanedSizes)
+            {
+                message += $"{entry.Key}: {entry.Value / 1024 / 1024} MB cleaned\n";
+            }
+            message += $"\nTotal cleaned: {totalCleanedSize / 1024 / 1024} MB";
+            MessageBox.Show(message, "Cleaning Completed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void chkPrefetch_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnRunTreeCDrive_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Set up the process to run the TREE command for the C: drive
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/c TREE C:\\ /F", // Run TREE on C: drive with /F to include files
+                    UseShellExecute = true,       // Use the shell to open the command prompt
+                    CreateNoWindow = false        // Set to false so the command prompt window is visible
+                };
+
+                // Start the process to display TREE output in a command prompt window
+                Process.Start(psi);
+            }
+            catch (Exception ex)
+            {
+                // Optional: Log or handle errors here if necessary
+                MessageBox.Show($"Error running TREE for C:\\: {ex.Message}");
+            }
+        }
+    }
+}
